@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js';
 import ChargingPoint from '../models/ChargingPoint.js';
+import { createBookingAtomic, verifyBookingPayment } from '../utils/bookingTransactions.js';
 
 /**
  * Initiate a booking and set payment deadline
@@ -37,25 +38,6 @@ export const initiateBooking = async (req, res) => {
       });
     }
 
-    // Check for conflicting bookings
-    const existingBookings = await Booking.find({
-      chargerId,
-      $or: [
-        {
-          startTime: { $lt: parsedEndTime },
-          endTime: { $gt: parsedStartTime },
-          bookingStatus: { $in: ['pending', 'booked'] },
-        },
-      ],
-    });
-
-    if (existingBookings.length > 0) {
-      return res.status(409).json({
-        success: false,
-        message: 'Charger is not available for the requested time slot',
-      });
-    }
-
     // Calculate duration in hours
     const durationMs = parsedEndTime.getTime() - parsedStartTime.getTime();
     const durationHours = durationMs / (1000 * 60 * 60);
@@ -69,30 +51,42 @@ export const initiateBooking = async (req, res) => {
     // Set payment deadline to 5 minutes from now
     const paymentDeadline = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Create booking with status "pending"
-    const booking = await Booking.create({
-      stationId,
-      chargerId,
-      userId,
-      startTime: parsedStartTime,
-      endTime: parsedEndTime,
-      amount,
-      bookingStatus: 'pending',
-      paymentStatus: 'pending',
-      paymentDeadline,
-      paymentId,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Booking initiated. Please complete payment within 5 minutes.',
-      data: {
-        booking,
+    // Attempt to create booking - handles race conditions automatically
+    try {
+      const bookingData = {
+        stationId,
+        chargerId,
+        userId,
+        startTime: parsedStartTime,
+        endTime: parsedEndTime,
+        amount,
+        bookingStatus: 'pending',
+        paymentStatus: 'pending',
         paymentDeadline,
         paymentId,
-        amount,
-      },
-    });
+      };
+
+      const booking = await createBookingAtomic(bookingData);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Booking initiated. Please complete payment within 5 minutes.',
+        data: {
+          booking,
+          paymentDeadline,
+          paymentId,
+          amount,
+        },
+      });
+    } catch (bookingError) {
+      if (bookingError.code === 'CONFLICT_DETECTED') {
+        return res.status(409).json({
+          success: false,
+          message: bookingError.message,
+        });
+      }
+      throw bookingError;
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -118,40 +112,6 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // Find booking
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found',
-      });
-    }
-
-    // Check if payment deadline has passed
-    const now = new Date();
-    if (now > booking.paymentDeadline) {
-      booking.paymentStatus = 'expired';
-      booking.bookingStatus = 'cancelled';
-      await booking.save();
-
-      return res.status(400).json({
-        success: false,
-        message: 'Payment deadline expired. Booking has been cancelled.',
-      });
-    }
-
-    // Check if payment ID matches
-    if (booking.paymentId !== paymentId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment ID',
-      });
-    }
-
-    // Simulate payment processing
-    // In a real application, you would call Razorpay or similar here
-    // For now, we validate card details and simulate success
-
     // Validate card number (basic check: must be 16 digits)
     if (!cardNumber || cardNumber.replace(/\s/g, '').length !== 16) {
       return res.status(400).json({
@@ -173,6 +133,44 @@ export const verifyPayment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid CVV',
+      });
+    }
+
+    // Find booking and verify state atomically
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found',
+      });
+    }
+
+    // Check if booking is still in pending state
+    if (booking.bookingStatus !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking has already been processed',
+      });
+    }
+
+    // Check if payment deadline has passed
+    const now = new Date();
+    if (now > booking.paymentDeadline) {
+      booking.paymentStatus = 'expired';
+      booking.bookingStatus = 'cancelled';
+      await booking.save();
+
+      return res.status(400).json({
+        success: false,
+        message: 'Payment deadline expired. Booking has been cancelled.',
+      });
+    }
+
+    // Check if payment ID matches
+    if (booking.paymentId !== paymentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment ID',
       });
     }
 

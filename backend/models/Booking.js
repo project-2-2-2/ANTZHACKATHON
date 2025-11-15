@@ -59,6 +59,16 @@ const bookingSchema = new mongoose.Schema({
 bookingSchema.index({ chargerId: 1, startTime: 1, endTime: 1 });
 bookingSchema.index({ userId: 1 });
 
+// Sparse index to prevent duplicate pending/booked bookings for same charger in overlapping times
+// This helps enforce uniqueness at the database level
+bookingSchema.index(
+  { chargerId: 1, bookingStatus: 1, startTime: 1, endTime: 1 },
+  { 
+    name: 'unique_charger_booking_time',
+    sparse: true,
+  }
+);
+
 const Booking = mongoose.model('Booking', bookingSchema);
 
 export default Booking;
