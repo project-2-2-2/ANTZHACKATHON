@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getStationById } from '../services/api';
+import BookingModal from '../components/BookingModal';
+import PaymentModal from '../components/PaymentModal';
 
 export default function StationDetails() {
   const { id } = useParams();
@@ -8,6 +10,11 @@ export default function StationDetails() {
   const [chargingPoints, setChargingPoints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedCharger, setSelectedCharger] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [currentBooking, setCurrentBooking] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -23,7 +30,7 @@ export default function StationDetails() {
           payload.connectors ??
           payload.ports ??
           [];
-
+        console.log(connectors);
         setStation(stationObj || null);
         setChargingPoints(Array.isArray(connectors) ? connectors : []);
       } catch (err) {
@@ -73,6 +80,55 @@ export default function StationDetails() {
     }
   };
 
+  const handleBookNow = (charger) => {
+    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+    if (!userId) {
+      setError('Please log in to make a booking');
+      return;
+    }
+    setSelectedCharger(charger);
+    setShowBookingModal(true);
+  };
+
+  const handleBookingInitiated = (booking) => {
+    setCurrentBooking(booking);
+    setShowBookingModal(false);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = (bookedData) => {
+    setSuccessMessage('Booking confirmed! Your charging slot has been booked successfully.');
+    setShowPaymentModal(false);
+    setCurrentBooking(null);
+    setSelectedCharger(null);
+
+    // Refresh station data to update charger status
+    const reloadStation = async () => {
+      try {
+        const res = await getStationById(id);
+        const respData = res?.data ?? {};
+        const payload = respData.data ?? respData;
+        const stationObj = payload.station ?? payload;
+        const connectors =
+          payload.chargingPoints ??
+          payload.connectors ??
+          payload.ports ??
+          [];
+
+        setStation(stationObj || null);
+        setChargingPoints(Array.isArray(connectors) ? connectors : []);
+      } catch (err) {
+        console.error('Error reloading station:', err);
+      }
+    };
+
+    // Reload station data after a short delay
+    setTimeout(() => {
+      reloadStation();
+      setSuccessMessage(null);
+    }, 1500);
+  };
+
   return (
     <div style={{ padding: 20, fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial' }}>
       <h2 style={{ margin: 0, fontSize: 22 }}>{station.name || 'Station'}</h2>
@@ -86,6 +142,36 @@ export default function StationDetails() {
           </div>
         )}
       </div>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            backgroundColor: '#fee',
+            color: '#d12b2b',
+            borderRadius: 4,
+            fontSize: 14,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            backgroundColor: '#efe',
+            color: '#1e8e3e',
+            borderRadius: 4,
+            fontSize: 14,
+          }}
+        >
+          ✓ {successMessage}
+        </div>
+      )}
 
       <section style={{ marginTop: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -116,6 +202,8 @@ export default function StationDetails() {
                   padding: 12,
                   boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                   background: '#fff',
+                  display: 'flex',
+                  flexDirection: 'column',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -134,7 +222,7 @@ export default function StationDetails() {
                   </span>
                 </div>
 
-                <div style={{ marginTop: 8, fontSize: 14 }}>
+                <div style={{ marginTop: 8, fontSize: 14, flex: 1 }}>
                   <div>
                     <strong>Capacity:</strong> {c.capacity ?? '—'} kW
                   </div>
@@ -143,11 +231,69 @@ export default function StationDetails() {
                     </div>
                   )}
                 </div>
+
+                <button
+                  onClick={() => handleBookNow(c)}
+                  disabled={c.availabilityStatus === 'in_use' || c.availabilityStatus === 'in-use' || c.availabilityStatus === 'booked'}
+                  style={{
+                    marginTop: 12,
+                    padding: 10,
+                    backgroundColor:
+                      c.availabilityStatus === 'in_use' || c.availabilityStatus === 'in-use' || c.availabilityStatus === 'booked' ? '#ccc' : '#1e8e3e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor:
+                      c.availabilityStatus === 'in_use' || c.availabilityStatus === 'in-use' || c.availabilityStatus === 'booked'
+                        ? 'not-allowed'
+                        : 'pointer',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseOver={(e) => {
+                    if (c.availabilityStatus !== 'in_use' && c.availabilityStatus !== 'in-use' && c.availabilityStatus !== 'booked') {
+                      e.target.style.backgroundColor = '#1a6b2f';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (c.availabilityStatus !== 'in_use' && c.availabilityStatus !== 'in-use' && c.availabilityStatus !== 'booked') {
+                      e.target.style.backgroundColor = '#1e8e3e';
+                    }
+                  }}
+                >
+                  {c.availabilityStatus === 'in_use' || c.availabilityStatus === 'in-use' ? 'In Use' : c.availabilityStatus === 'booked' ? 'Booked' : 'Book Now'}
+                </button>
               </article>
             ))}
           </div>
         )}
       </section>
+
+      {showBookingModal && selectedCharger && station && (
+        <BookingModal
+          station={station}
+          charger={selectedCharger}
+          userId={localStorage.getItem('userId') || sessionStorage.getItem('userId')}
+          onClose={() => {
+            setShowBookingModal(false);
+            setSelectedCharger(null);
+          }}
+          onBookingInitiated={handleBookingInitiated}
+        />
+      )}
+
+      {showPaymentModal && currentBooking && (
+        <PaymentModal
+          booking={currentBooking}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setCurrentBooking(null);
+            setSelectedCharger(null);
+          }}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }

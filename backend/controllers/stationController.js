@@ -95,7 +95,7 @@ export const getStationById = async (req, res) => {
     // Check real-time availability for each charging point
     const chargingPointsWithAvailability = await Promise.all(
       chargingPoints.map(async (charger) => {
-        // Check for active bookings (currently in use or starting soon)
+        // Check for active bookings (currently in use - started but not ended)
         const activeBookings = await Booking.find({
           chargerId: charger._id,
           bookingStatus: { $in: ['pending', 'booked'] },
@@ -103,26 +103,33 @@ export const getStationById = async (req, res) => {
           endTime: { $gt: now },
         });
 
-        // Determine availability status
-        let availabilityStatus = 'free';
+        // If there's an active booking, status is "in_use"
         if (activeBookings.length > 0) {
-          availabilityStatus = 'in_use';
-        } else {
-          // Check if there are upcoming bookings in the next few minutes
-          const upcomingBookings = await Booking.find({
-            chargerId: charger._id,
-            bookingStatus: { $in: ['pending', 'booked'] },
-            startTime: { $lte: new Date(now.getTime() + 5 * 60 * 1000) }, // Next 5 minutes
-            endTime: { $gt: now },
-          });
-          if (upcomingBookings.length > 0) {
-            availabilityStatus = 'booked';
-          }
+          return {
+            ...charger.toObject(),
+            availabilityStatus: 'in_use',
+          };
         }
 
+        // Check for any future bookings (pending or booked)
+        const futureBookings = await Booking.find({
+          chargerId: charger._id,
+          bookingStatus: { $in: ['pending', 'booked'] },
+          startTime: { $gt: now },
+        });
+
+        // If there are future bookings, status is "booked"
+        if (futureBookings.length > 0) {
+          return {
+            ...charger.toObject(),
+            availabilityStatus: 'booked',
+          };
+        }
+
+        // Otherwise, it's free
         return {
           ...charger.toObject(),
-          availabilityStatus,
+          availabilityStatus: 'free',
         };
       })
     );

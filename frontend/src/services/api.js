@@ -42,4 +42,20 @@ export const loginUser = (payload) => {
   return api.post('/users/login', payload);
 };
 
+export const initiateBooking = (payload) => {
+  return api.post('/payment/initiate-booking', payload);
+};
+
+export const verifyPayment = (payload) => {
+  return api.post('/payment/verify', payload);
+};
+
+export const getBookingDetails = (bookingId) => {
+  return api.get(`/payment/booking/${bookingId}`);
+};
+
+export const cancelPendingBooking = (bookingId) => {
+  return api.post(`/payment/cancel-pending/${bookingId}`);
+};
+
 export default api;
