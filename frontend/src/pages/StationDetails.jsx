@@ -140,8 +140,6 @@ export default function StationDetails() {
                   </div>
                   {c._id && (
                     <div style={{ marginTop: 6, color: '#666', fontSize: 12 }}>
-                      <span>id: {c._id}</span>
-                      {c.createdAt && <span style={{ marginLeft: 8 }}>• added {formatDate(c.createdAt)}</span>}
                     </div>
                   )}
                 </div>
@@ -150,24 +148,6 @@ export default function StationDetails() {
           </div>
         )}
       </section>
-
-      <details style={{ marginTop: 18, maxWidth: '100%' }}>
-        <summary style={{ cursor: 'pointer' }}>Raw station JSON (debug)</summary>
-        <pre
-          style={{
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            maxHeight: 300,
-            overflow: 'auto',
-            background: '#0f1724',
-            color: '#e6eef8',
-            padding: 12,
-            borderRadius: 6,
-            marginTop: 8,
-          }}
-        >
-        </pre>
-      </details>
     </div>
   );
 }
