@@ -5,7 +5,6 @@ import connectDB from './config/db.js';
 // Import routes
 import stationRoutes from './routes/stationRoutes.js';
 import pricingRoutes from './routes/pricingRoutes.js';
-import bookingRoutes from './routes/bookingRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 
@@ -37,7 +36,6 @@ app.use((req, res, next) => {
 // Routes
 app.use('/stations', stationRoutes);
 app.use('/pricing', pricingRoutes);
-app.use('/booking', bookingRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/users', userRoutes);
 
@@ -64,9 +62,11 @@ app.get('/', (req, res) => {
       pricing: {
         calculate: 'POST /pricing',
       },
-      booking: {
-        create: 'POST /booking',
-        cancel: 'POST /booking/cancel/:id',
+      payment: {
+        initiate: 'POST /payment/initiate-booking',
+        verify: 'POST /payment/verify',
+        getBooking: 'GET /payment/booking/:id',
+        userBookings: 'GET /payment/user/:userId',
       },
       users: {
         usage: 'GET /users/:id/usage',

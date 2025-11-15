@@ -2,7 +2,6 @@ import Station from '../models/Station.js';
 import ChargingPoint from '../models/ChargingPoint.js';
 import Booking from '../models/Booking.js';
 import { calculateDistance } from '../utils/distance.js';
-import { checkChargerAvailability } from '../utils/availability.js';
 
 /**
  * Get nearby stations within a specified radius

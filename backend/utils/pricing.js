@@ -15,7 +15,6 @@ import Booking from '../models/Booking.js';
  */
 export const calculatePricing = async (stationId, chargerId, durationHours, startTime = null) => {
   try {
-    // Fetch station and charger details
     const station = await Station.findById(stationId);
     const charger = await ChargingPoint.findById(chargerId);
 
@@ -60,7 +59,7 @@ export const calculatePricing = async (stationId, chargerId, durationHours, star
     const totalAmount = pricePerHour * durationHours;
 
     return {
-      pricePerHour: Math.round(pricePerHour * 100) / 100, // Round to 2 decimal places
+      pricePerHour: Math.round(pricePerHour * 100) / 100,
       totalAmount: Math.round(totalAmount * 100) / 100,
     };
   } catch (error) {

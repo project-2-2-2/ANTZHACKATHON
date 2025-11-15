@@ -1,6 +1,6 @@
 import Booking from '../models/Booking.js';
 import ChargingPoint from '../models/ChargingPoint.js';
-import { createBookingAtomic, verifyBookingPayment } from '../utils/bookingTransactions.js';
+import { createBookingAtomic } from '../utils/bookingTransactions.js';
 
 /**
  * Initiate a booking and set payment deadline
