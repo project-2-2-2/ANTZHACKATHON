@@ -1,6 +1,18 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Landing() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Redirect to stations page
+      navigate('/stations');
+    }
+  }, [navigate]);
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
       <div style={{ maxWidth: 720, width: '100%', background: 'white', padding: 28, borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.08)' }}>
