@@ -7,6 +7,7 @@ import Register from './components/Register'
 import Stations from './pages/Stations'
 import StationDetails from './pages/StationDetails'
 import Landing from './pages/Landing'
+import MyBookings from './pages/MyBookings'
 
 function Protected({ children }) {
   const token = localStorage.getItem('token');
@@ -24,6 +25,7 @@ createRoot(document.getElementById('root')).render(
 
         <Route path="stations" element={<Protected><Stations /></Protected>} />
         <Route path="station/:id" element={<Protected><StationDetails /></Protected>} />
+        <Route path="my-bookings" element={<Protected><MyBookings /></Protected>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

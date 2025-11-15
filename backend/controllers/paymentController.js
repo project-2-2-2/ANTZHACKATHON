@@ -294,3 +294,121 @@ export const cancelPendingBooking = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get all bookings for a user
+ * GET /payment/user/:userId
+ */
+export const getUserBookings = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const bookings = await Booking.find({ userId })
+      .populate('stationId', 'name address location price openingHours')
+      .populate('chargerId', 'connectorType capacity availabilityStatus')
+      .sort({ startTime: -1 });
+
+    const now = new Date();
+
+    // Separate upcoming and previous bookings
+    const upcomingBookings = bookings.filter(
+      (b) => b.startTime > now && b.bookingStatus !== 'cancelled'
+    );
+    const previousBookings = bookings.filter(
+      (b) => b.startTime <= now || b.bookingStatus === 'cancelled'
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        upcoming: upcomingBookings,
+        previous: previousBookings,
+        total: bookings.length,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user bookings',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Cancel an upcoming booking with refund logic
+ * POST /payment/cancel-booking/:id
+ */
+export const cancelUserBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found',
+      });
+    }
+
+    if (booking.bookingStatus === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is already cancelled',
+      });
+    }
+
+    // Calculate refund based on cancellation time
+    const now = new Date();
+    const startTime = new Date(booking.startTime);
+    const timeDifferenceMs = startTime.getTime() - now.getTime();
+    const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
+
+    let refundAmount = 0;
+    let refundPolicy = '';
+
+    // Refund policy: 10+ minutes before startTime → full refund, else → no refund
+    if (timeDifferenceMinutes >= 10) {
+      refundAmount = booking.amount;
+      refundPolicy = 'Full refund - cancelled more than 10 minutes before start time';
+    } else {
+      refundPolicy = 'No refund - cancelled less than 10 minutes before start time';
+    }
+
+    // Update booking status
+    booking.bookingStatus = 'cancelled';
+    await booking.save();
+
+    // Update charger availability back to free if no other bookings
+    const otherBookings = await Booking.find({
+      chargerId: booking.chargerId,
+      bookingStatus: { $in: ['pending', 'booked'] },
+      _id: { $ne: id },
+    });
+
+    if (otherBookings.length === 0) {
+      await ChargingPoint.findByIdAndUpdate(booking.chargerId, {
+        availabilityStatus: 'free',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: {
+        booking,
+        refund: {
+          amount: Math.round(refundAmount * 100) / 100,
+          policy: refundPolicy,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error cancelling booking',
+      error: error.message,
+    });
+  }
+};
+

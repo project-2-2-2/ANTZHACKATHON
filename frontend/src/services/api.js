@@ -58,4 +58,12 @@ export const cancelPendingBooking = (bookingId) => {
   return api.post(`/payment/cancel-pending/${bookingId}`);
 };
 
+export const getUserBookings = (userId) => {
+  return api.get(`/payment/user/${userId}`);
+};
+
+export const cancelUserBooking = (bookingId) => {
+  return api.post(`/payment/cancel-booking/${bookingId}`);
+};
+
 export default api;

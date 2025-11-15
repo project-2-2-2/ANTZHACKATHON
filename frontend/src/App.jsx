@@ -19,7 +19,10 @@ export default function App() {
         <nav>
           <Link to="/" style={{ color: 'white', marginRight: 12, textDecoration: 'none' }}>Home</Link>
           {localStorage.getItem('token') ? (
-            <button onClick={handleLogout} style={{ background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.16)', padding: '6px 10px', borderRadius: 6 }}>Logout</button>
+            <>
+              <Link to="/my-bookings" style={{ color: 'white', marginRight: 12, textDecoration: 'none' }}>My Bookings</Link>
+              <button onClick={handleLogout} style={{ background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.16)', padding: '6px 10px', borderRadius: 6 }}>Logout</button>
+            </>
           ) : (
             <>
               <Link to="/login" style={{ color: 'white', marginRight: 8, textDecoration: 'none' }}>Sign in</Link>
