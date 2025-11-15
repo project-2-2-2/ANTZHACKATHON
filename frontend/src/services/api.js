@@ -66,4 +66,8 @@ export const cancelUserBooking = (bookingId) => {
   return api.post(`/payment/cancel-booking/${bookingId}`);
 };
 
+export const getUserStats = (userId) => {
+  return api.get(`/users/${userId}/usage`);
+};
+
 export default api;

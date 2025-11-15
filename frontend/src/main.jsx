@@ -9,6 +9,7 @@ import StationDetails from './pages/StationDetails'
 import Landing from './pages/Landing'
 import MyBookings from './pages/MyBookings'
 import MapLoc from './pages/MapLoc'
+import UserStats from './pages/UserStats'
 
 function Protected({ children }) {
   const token = localStorage.getItem('token');
@@ -28,6 +29,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="map" element={<Protected><MapLoc /></Protected>} />
         <Route path="station/:id" element={<Protected><StationDetails /></Protected>} />
         <Route path="my-bookings" element={<Protected><MyBookings /></Protected>} />
+        <Route path="stats" element={<Protected><UserStats /></Protected>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
